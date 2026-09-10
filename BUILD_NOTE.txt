@@ -1,0 +1,2 @@
+This source project is intentionally shipped without a prebuilt APK because the execution environment does not contain an Android SDK/Gradle toolchain.
+Open the project in Android Studio, allow Gradle sync, and build app-debug.apk.
