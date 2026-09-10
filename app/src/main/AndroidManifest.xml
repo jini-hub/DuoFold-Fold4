@@ -2,10 +2,8 @@
 
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
-    <!-- 다른 앱 위에 투명한 Duo 애니메이션을 표시하기 위한 권한 -->
     <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
 
-    <!-- 백그라운드 센서 감시 -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
 
@@ -15,7 +13,6 @@
         android:allowBackup="false"
         android:supportsRtl="true">
 
-        <!-- DuoFold 설정/실행용 -->
         <activity
             android:name=".MainActivity"
             android:exported="true"
@@ -28,7 +25,6 @@
 
         </activity>
 
-        <!-- 백그라운드에서 힌지 상태 감시 -->
         <service
             android:name=".DuoService"
             android:exported="false"
