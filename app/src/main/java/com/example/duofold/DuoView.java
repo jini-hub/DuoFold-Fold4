@@ -1,44 +1,39 @@
 package com.example.duofold;
 
-import android.content.Context;
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
-import android.graphics.Typeface;
 import android.view.View;
+
+import java.util.Locale;
 
 public class DuoView extends View {
 
     private final Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG);
 
-    private float hingeAngle = 180f;
+    private float hingeAngle = -1f;
+    private boolean sensorAvailable = false;
+    private long eventCount = 0;
 
-    public DuoView(Context context) {
+    public DuoView(MainActivity context) {
         super(context);
 
-        paint.setTypeface(
-                Typeface.create(
-                        "sans",
-                        Typeface.NORMAL
-                )
-        );
+        paint.setTypeface(android.graphics.Typeface.create(
+                "sans",
+                android.graphics.Typeface.NORMAL
+        ));
+    }
 
-        setLayerType(View.LAYER_TYPE_SOFTWARE, null);
+    public void setSensorStatus(boolean available) {
+        sensorAvailable = available;
+        invalidate();
     }
 
     public void setHingeAngle(float angle) {
 
-        if (angle < 0f) {
-            angle = 0f;
-        }
-
-        if (angle > 180f) {
-            angle = 180f;
-        }
-
         hingeAngle = angle;
+        eventCount++;
 
-        // 화면을 다시 그리도록 요청
         invalidate();
     }
 
@@ -46,150 +41,170 @@ public class DuoView extends View {
     protected void onDraw(Canvas canvas) {
         super.onDraw(canvas);
 
-        int width = getWidth();
-        int height = getHeight();
+        canvas.drawColor(Color.BLACK);
 
-        canvas.drawColor(
-                Color.rgb(10, 10, 14)
-        );
+        float width = getWidth();
+        float height = getHeight();
 
-        float centerX = width / 2f;
-        float centerY = height / 2f;
-
-        // -------------------------
         // 제목
-        // -------------------------
-
-        paint.setStyle(Paint.Style.FILL);
         paint.setColor(Color.WHITE);
         paint.setTextAlign(Paint.Align.CENTER);
-        paint.setTextSize(
-                Math.max(36f, width * 0.075f)
-        );
+        paint.setTextSize(42);
 
         canvas.drawText(
                 "DuoFold",
-                centerX,
-                centerY - 130f,
+                width / 2,
+                90,
                 paint
         );
 
-        // -------------------------
-        // 힌지 각도
-        // -------------------------
-
-        paint.setTextSize(
-                Math.max(28f, width * 0.06f)
-        );
+        // HINGE SENSOR
+        paint.setTextSize(22);
+        paint.setColor(Color.LTGRAY);
 
         canvas.drawText(
-                String.format("%.1f°", hingeAngle),
-                centerX,
-                centerY - 70f,
+                "HINGE SENSOR",
+                width / 2,
+                160,
                 paint
         );
 
-        // -------------------------
-        // 상태
-        // -------------------------
+        // ANGLE
+        paint.setTextSize(20);
+        paint.setColor(Color.GRAY);
 
-        paint.setTextSize(
-                Math.max(16f, width * 0.032f)
+        canvas.drawText(
+                "RAW ANGLE",
+                width / 2,
+                220,
+                paint
         );
+
+        // 실제 센서값
+        paint.setTextSize(64);
+        paint.setColor(Color.WHITE);
+
+        String angleText;
+
+        if (hingeAngle < 0) {
+            angleText = "---";
+        } else {
+            angleText = String.format(
+                    Locale.US,
+                    "%.2f°",
+                    hingeAngle
+            );
+        }
+
+        canvas.drawText(
+                angleText,
+                width / 2,
+                300,
+                paint
+        );
+
+        // EVENT COUNT
+        paint.setTextSize(20);
+        paint.setColor(Color.GRAY);
+
+        canvas.drawText(
+                "EVENT COUNT",
+                width / 2,
+                370,
+                paint
+        );
+
+        paint.setTextSize(32);
+        paint.setColor(Color.WHITE);
+
+        canvas.drawText(
+                String.valueOf(eventCount),
+                width / 2,
+                415,
+                paint
+        );
+
+        // SENSOR STATUS
+        paint.setTextSize(20);
+        paint.setColor(Color.GRAY);
+
+        canvas.drawText(
+                "SENSOR",
+                width / 2,
+                485,
+                paint
+        );
+
+        paint.setTextSize(30);
+
+        if (sensorAvailable) {
+            paint.setColor(Color.WHITE);
+
+            canvas.drawText(
+                    "ACTIVE",
+                    width / 2,
+                    530,
+                    paint
+            );
+        } else {
+            paint.setColor(Color.RED);
+
+            canvas.drawText(
+                    "NOT FOUND",
+                    width / 2,
+                    530,
+                    paint
+            );
+        }
+
+        // 현재 상태
+        paint.setTextSize(20);
+        paint.setColor(Color.GRAY);
+
+        canvas.drawText(
+                "STATE",
+                width / 2,
+                600,
+                paint
+        );
+
+        paint.setTextSize(30);
+        paint.setColor(Color.WHITE);
 
         String state;
 
-        if (hingeAngle >= 165f) {
+        if (hingeAngle < 0) {
+            state = "WAITING";
+        } else if (hingeAngle >= 160) {
             state = "OPEN";
-        } else if (hingeAngle <= 30f) {
+        } else if (hingeAngle <= 20) {
             state = "CLOSED";
         } else {
             state = "FLEX";
         }
 
-        paint.setColor(Color.LTGRAY);
-
         canvas.drawText(
                 state,
-                centerX,
-                centerY - 35f,
+                width / 2,
+                645,
                 paint
         );
 
-        // -------------------------
-        // 힌지 애니메이션
-        // -------------------------
-
-        float radius = Math.min(
-                width,
-                height
-        ) * 0.20f;
-
-        // 0~180도를 0~180도로 변환
-        float rotation = hingeAngle - 90f;
-
-        canvas.save();
-
-        canvas.rotate(
-                rotation,
-                centerX,
-                centerY + 80f
-        );
-
-        // 왼쪽 패널
-        paint.setStyle(Paint.Style.STROKE);
-        paint.setStrokeWidth(8f);
-        paint.setColor(Color.WHITE);
-
-        float panelWidth = radius * 1.25f;
-        float panelHeight = radius * 0.9f;
-
-        canvas.drawRoundRect(
-                centerX - panelWidth,
-                centerY + 30f,
-                centerX,
-                centerY + 30f + panelHeight,
-                25f,
-                25f,
-                paint
-        );
-
-        // 오른쪽 패널
-        canvas.drawRoundRect(
-                centerX,
-                centerY + 30f,
-                centerX + panelWidth,
-                centerY + 30f + panelHeight,
-                25f,
-                25f,
-                paint
-        );
-
-        // 중앙 힌지
-        paint.setStyle(Paint.Style.FILL);
-
-        canvas.drawCircle(
-                centerX,
-                centerY + 30f + panelHeight / 2f,
-                14f,
-                paint
-        );
-
-        canvas.restore();
-
-        // -------------------------
-        // 센서 안내
-        // -------------------------
-
+        // 안내
+        paint.setTextSize(18);
         paint.setColor(Color.GRAY);
-        paint.setTextSize(
-                Math.max(14f, width * 0.028f)
+
+        canvas.drawText(
+                "Fold / unfold the device slowly",
+                width / 2,
+                height - 70,
+                paint
         );
 
         canvas.drawText(
-                "Hinge sensor active",
-                centerX,
-                height - 60f,
+                "Watch the RAW ANGLE value",
+                width / 2,
+                height - 40,
                 paint
         );
     }
