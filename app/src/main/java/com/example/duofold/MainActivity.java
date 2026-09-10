@@ -15,34 +15,7 @@ public class MainActivity extends Activity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
-        if (!Settings.canDrawOverlays(this)) {
-
-            Toast.makeText(
-                    this,
-                    "DuoFold를 사용하려면 '다른 앱 위에 표시' 권한이 필요합니다.",
-                    Toast.LENGTH_LONG
-            ).show();
-
-            try {
-                Intent intent = new Intent(
-                        Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
-                        Uri.parse("package:" + getPackageName())
-                );
-
-                startActivityForResult(intent, OVERLAY_REQUEST);
-
-            } catch (Exception e) {
-                startActivity(
-                        new Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION)
-                );
-            }
-
-            return;
-        }
-
-        startDuoService();
-
-        finish();
+        checkOverlayPermission();
     }
 
     @Override
@@ -54,13 +27,56 @@ public class MainActivity extends Activity {
         }
     }
 
+    private void checkOverlayPermission() {
+
+        if (!Settings.canDrawOverlays(this)) {
+
+            Toast.makeText(
+                    this,
+                    "DuoFold를 사용하려면 '다른 앱 위에 표시' 권한이 필요합니다.",
+                    Toast.LENGTH_LONG
+            ).show();
+
+            try {
+
+                Intent intent = new Intent(
+                        Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+                        Uri.parse("package:" + getPackageName())
+                );
+
+                startActivityForResult(
+                        intent,
+                        OVERLAY_REQUEST
+                );
+
+            } catch (Exception e) {
+
+                startActivity(
+                        new Intent(
+                                Settings.ACTION_MANAGE_OVERLAY_PERMISSION
+                        )
+                );
+            }
+
+            return;
+        }
+
+        startDuoService();
+    }
+
     private void startDuoService() {
 
-        Intent intent = new Intent(this, DuoService.class);
+        Intent intent =
+                new Intent(this, DuoService.class);
 
         try {
+
             startForegroundService(intent);
+
+            finish();
+
         } catch (Exception e) {
+
             Toast.makeText(
                     this,
                     "DuoFold 서비스를 시작할 수 없습니다.",
