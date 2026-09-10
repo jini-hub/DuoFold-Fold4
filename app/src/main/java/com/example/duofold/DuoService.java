@@ -17,9 +17,11 @@ import android.provider.Settings;
 import android.view.Gravity;
 import android.view.WindowManager;
 
-public class DuoService extends Service implements SensorEventListener {
+public class DuoService extends Service
+        implements SensorEventListener {
 
-    private static final String CHANNEL_ID = "DuoFoldService";
+    private static final String CHANNEL_ID =
+            "DuoFoldService";
 
     private SensorManager sensorManager;
     private Sensor hingeSensor;
@@ -27,7 +29,15 @@ public class DuoService extends Service implements SensorEventListener {
     private WindowManager windowManager;
     private DuoOverlayView overlayView;
 
-    private float lastSensorAngle = 180f;
+    /*
+     * Fold4 센서는 우리가 확인한 결과
+     *
+     * 180 = 펼침
+     * 90  = 접힘
+     *
+     * 두 상태만 사용한다.
+     */
+    private int currentState = 180;
 
     @Override
     public void onCreate() {
@@ -36,10 +46,15 @@ public class DuoService extends Service implements SensorEventListener {
         createNotificationChannel();
 
         Notification notification =
-                new Notification.Builder(this, CHANNEL_ID)
+                new Notification.Builder(
+                        this,
+                        CHANNEL_ID
+                )
                         .setContentTitle("DuoFold")
                         .setContentText("폴더블 상태 감시 중")
-                        .setSmallIcon(android.R.drawable.ic_menu_view)
+                        .setSmallIcon(
+                                android.R.drawable.ic_menu_view
+                        )
                         .setOngoing(true)
                         .build();
 
@@ -61,33 +76,35 @@ public class DuoService extends Service implements SensorEventListener {
         }
 
         setupSensor();
-
         setupOverlay();
     }
 
     private void setupSensor() {
 
         sensorManager =
-                (SensorManager) getSystemService(
-                        Context.SENSOR_SERVICE
-                );
+                (SensorManager)
+                        getSystemService(
+                                Context.SENSOR_SERVICE
+                        );
 
-        if (sensorManager != null) {
-
-            hingeSensor =
-                    sensorManager.getDefaultSensor(
-                            Sensor.TYPE_HINGE_ANGLE
-                    );
-
-            if (hingeSensor != null) {
-
-                sensorManager.registerListener(
-                        this,
-                        hingeSensor,
-                        SensorManager.SENSOR_DELAY_GAME
-                );
-            }
+        if (sensorManager == null) {
+            return;
         }
+
+        hingeSensor =
+                sensorManager.getDefaultSensor(
+                        Sensor.TYPE_HINGE_ANGLE
+                );
+
+        if (hingeSensor == null) {
+            return;
+        }
+
+        sensorManager.registerListener(
+                this,
+                hingeSensor,
+                SensorManager.SENSOR_DELAY_GAME
+        );
     }
 
     private void setupOverlay() {
@@ -97,30 +114,39 @@ public class DuoService extends Service implements SensorEventListener {
         }
 
         windowManager =
-                (WindowManager) getSystemService(
-                        WINDOW_SERVICE
-                );
+                (WindowManager)
+                        getSystemService(
+                                WINDOW_SERVICE
+                        );
+
+        if (windowManager == null) {
+            return;
+        }
 
         overlayView =
                 new DuoOverlayView(this);
 
         int windowType;
 
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+        if (Build.VERSION.SDK_INT >=
+                Build.VERSION_CODES.O) {
 
             windowType =
-                    WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY;
+                    WindowManager.LayoutParams
+                            .TYPE_APPLICATION_OVERLAY;
 
         } else {
 
             windowType =
-                    WindowManager.LayoutParams.TYPE_PHONE;
+                    WindowManager.LayoutParams
+                            .TYPE_PHONE;
         }
 
         WindowManager.LayoutParams params =
                 new WindowManager.LayoutParams(
                         WindowManager.LayoutParams.MATCH_PARENT,
                         WindowManager.LayoutParams.MATCH_PARENT,
+
                         windowType,
 
                         WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE
@@ -131,7 +157,8 @@ public class DuoService extends Service implements SensorEventListener {
                         PixelFormat.TRANSLUCENT
                 );
 
-        params.gravity = Gravity.TOP | Gravity.START;
+        params.gravity =
+                Gravity.TOP | Gravity.START;
 
         windowManager.addView(
                 overlayView,
@@ -140,7 +167,9 @@ public class DuoService extends Service implements SensorEventListener {
     }
 
     @Override
-    public void onSensorChanged(SensorEvent event) {
+    public void onSensorChanged(
+            SensorEvent event
+    ) {
 
         if (event.sensor.getType()
                 != Sensor.TYPE_HINGE_ANGLE) {
@@ -151,29 +180,41 @@ public class DuoService extends Service implements SensorEventListener {
             return;
         }
 
-        float angle = event.values[0];
+        float sensorValue =
+                event.values[0];
 
-        if (angle > 150f) {
+        /*
+         * 여기서부터가 핵심.
+         *
+         * 센서값을 실제 각도로 사용하지 않는다.
+         *
+         * 150 이상 → 무조건 180 상태
+         * 120 이하 → 무조건 90 상태
+         *
+         * 중간값은 전부 무시한다.
+         */
 
-            if (lastSensorAngle <= 150f) {
+        if (sensorValue >= 150f) {
+
+            if (currentState != 180) {
+
+                currentState = 180;
 
                 if (overlayView != null) {
                     overlayView.startOpenAnimation();
                 }
             }
 
-            lastSensorAngle = 180f;
+        } else if (sensorValue <= 120f) {
 
-        } else if (angle < 120f) {
+            if (currentState != 90) {
 
-            if (lastSensorAngle >= 150f) {
+                currentState = 90;
 
                 if (overlayView != null) {
                     overlayView.startCloseAnimation();
                 }
             }
-
-            lastSensorAngle = 90f;
         }
     }
 
@@ -186,13 +227,15 @@ public class DuoService extends Service implements SensorEventListener {
 
     private void createNotificationChannel() {
 
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+        if (Build.VERSION.SDK_INT >=
+                Build.VERSION_CODES.O) {
 
             NotificationChannel channel =
                     new NotificationChannel(
                             CHANNEL_ID,
                             "DuoFold",
-                            NotificationManager.IMPORTANCE_LOW
+                            NotificationManager
+                                    .IMPORTANCE_LOW
                     );
 
             channel.setDescription(
@@ -206,7 +249,9 @@ public class DuoService extends Service implements SensorEventListener {
                             );
 
             if (manager != null) {
-                manager.createNotificationChannel(channel);
+                manager.createNotificationChannel(
+                        channel
+                );
             }
         }
     }
@@ -215,16 +260,21 @@ public class DuoService extends Service implements SensorEventListener {
     public void onDestroy() {
 
         if (sensorManager != null) {
-            sensorManager.unregisterListener(this);
+
+            sensorManager.unregisterListener(
+                    this
+            );
         }
 
         if (windowManager != null
                 && overlayView != null) {
 
             try {
+
                 windowManager.removeView(
                         overlayView
                 );
+
             } catch (Exception ignored) {
             }
         }
