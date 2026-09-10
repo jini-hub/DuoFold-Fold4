@@ -1,5 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
+
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!-- 다른 앱 위에 투명한 Duo 애니메이션을 표시하기 위한 권한 -->
+    <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
+
+    <!-- 백그라운드 센서 감시 -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
 
     <application
         android:theme="@style/Theme.DuoFold"
@@ -7,25 +15,30 @@
         android:allowBackup="false"
         android:supportsRtl="true">
 
-        <!-- 일반 앱으로 실행할 수 있도록 등록 -->
+        <!-- DuoFold 설정/실행용 -->
         <activity
             android:name=".MainActivity"
-            android:screenOrientation="unspecified"
-            android:exported="true">
+            android:exported="true"
+            android:screenOrientation="unspecified">
 
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
 
-            <!-- 기본 홈 앱으로 사용할 수 있도록 등록 -->
-            <intent-filter>
-                <action android:name="android.intent.action.MAIN" />
-                <category android:name="android.intent.category.HOME" />
-                <category android:name="android.intent.category.DEFAULT" />
-            </intent-filter>
-
         </activity>
+
+        <!-- 백그라운드에서 힌지 상태 감시 -->
+        <service
+            android:name=".DuoService"
+            android:exported="false"
+            android:foregroundServiceType="specialUse">
+
+            <property
+                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+                android:value="Monitor foldable hinge state and display a visual fold animation" />
+
+        </service>
 
     </application>
 
