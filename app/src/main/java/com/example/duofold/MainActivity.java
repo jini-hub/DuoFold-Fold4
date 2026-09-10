@@ -3,13 +3,13 @@ package com.example.duofold;
 import android.app.Activity;
 import android.content.Context;
 import android.content.Intent;
-import android.graphics.Color;
 import android.hardware.Sensor;
 import android.hardware.SensorEvent;
 import android.hardware.SensorEventListener;
 import android.hardware.SensorManager;
 import android.os.Bundle;
 import android.provider.Settings;
+import android.graphics.Color;
 import android.view.View;
 import android.widget.Toast;
 
@@ -34,6 +34,12 @@ public class MainActivity extends Activity implements SensorEventListener {
             hingeSensor = sensorManager.getDefaultSensor(
                     Sensor.TYPE_HINGE_ANGLE
             );
+        }
+
+        if (hingeSensor != null) {
+            duoView.setSensorStatus(true);
+        } else {
+            duoView.setSensorStatus(false);
         }
     }
 
@@ -61,6 +67,7 @@ public class MainActivity extends Activity implements SensorEventListener {
 
     @Override
     public void onSensorChanged(SensorEvent event) {
+
         if (event.sensor.getType() == Sensor.TYPE_HINGE_ANGLE) {
 
             float angle = event.values[0];
