@@ -2,72 +2,105 @@ package com.example.duofold;
 
 import android.animation.ValueAnimator;
 import android.content.Context;
+import android.graphics.Camera;
 import android.graphics.Canvas;
 import android.graphics.Color;
+import android.graphics.Matrix;
 import android.graphics.Paint;
-import android.graphics.Path;
 import android.view.View;
-import android.view.animation.DecelerateInterpolator;
+import android.view.animation.PathInterpolator;
 
 public class DuoOverlayView extends View {
 
-    private final Paint paint = new Paint(
-            Paint.ANTI_ALIAS_FLAG
-    );
+    private final Paint paint =
+            new Paint(Paint.ANTI_ALIAS_FLAG);
 
-    private float animationProgress = 0f;
+    private final Camera camera =
+            new Camera();
+
+    private final Matrix matrix =
+            new Matrix();
+
+    /*
+     * 0 = 완전히 펼쳐진 상태
+     * 1 = 완전히 접힌 상태
+     */
+    private float progress = 0f;
 
     private ValueAnimator animator;
 
     public DuoOverlayView(Context context) {
         super(context);
 
-        setBackgroundColor(Color.TRANSPARENT);
+        setBackgroundColor(
+                Color.TRANSPARENT
+        );
 
-        paint.setStyle(Paint.Style.FILL);
+        paint.setAntiAlias(true);
+
+        setLayerType(
+                View.LAYER_TYPE_SOFTWARE,
+                null
+        );
     }
 
+    /*
+     * 180 → 90
+     *
+     * 접히기
+     */
     public void startCloseAnimation() {
 
-        startAnimation(
-                0f,
-                1f
-        );
+        animateTo(1f);
     }
 
+    /*
+     * 90 → 180
+     *
+     * 펼치기
+     */
     public void startOpenAnimation() {
 
-        startAnimation(
-                1f,
-                0f
-        );
+        animateTo(0f);
     }
 
-    private void startAnimation(
-            float from,
-            float to
+    private void animateTo(
+            float target
     ) {
 
         if (animator != null) {
             animator.cancel();
         }
 
-        animator = ValueAnimator.ofFloat(
-                from,
-                to
-        );
+        animator =
+                ValueAnimator.ofFloat(
+                        progress,
+                        target
+                );
 
-        animator.setDuration(550);
+        /*
+         * 실제 기기에서
+         * 너무 느리거나 빠르지 않도록
+         * 우선 650ms.
+         */
+        animator.setDuration(650);
 
         animator.setInterpolator(
-                new DecelerateInterpolator()
+                new PathInterpolator(
+                        0.16f,
+                        1.0f,
+                        0.3f,
+                        1.0f
+                )
         );
 
         animator.addUpdateListener(
                 animation -> {
 
-                    animationProgress =
-                            (float) animation.getAnimatedValue();
+                    progress =
+                            (float)
+                                    animation
+                                            .getAnimatedValue();
 
                     invalidate();
                 }
@@ -77,89 +110,156 @@ public class DuoOverlayView extends View {
     }
 
     @Override
-    protected void onDraw(Canvas canvas) {
+    protected void onDraw(
+            Canvas canvas
+    ) {
 
         super.onDraw(canvas);
 
-        if (animationProgress <= 0.001f) {
+        /*
+         * 완전히 펼쳐져 있을 때는
+         * 아무것도 그리지 않는다.
+         *
+         * 즉 평소에는
+         * 현재 실행 중인 앱 화면 그대로 보인다.
+         */
+        if (progress <= 0.001f) {
             return;
         }
 
-        float width = getWidth();
-        float height = getHeight();
+        float screenWidth =
+                getWidth();
+
+        float screenHeight =
+                getHeight();
+
+        float centerX =
+                screenWidth / 2f;
 
         /*
-         * 실제 화면은 완전히 투명.
-         * 아래의 그래픽만 다른 앱 위에 나타납니다.
+         * 화면 위에 표시할
+         * Duo 형태의 영역
          */
+        float deviceWidth =
+                Math.min(
+                        screenWidth * 0.92f,
+                        1000f
+                );
 
-        float centerX = width / 2f;
-        float centerY = height / 2f;
-
-        float maxWidth =
-                Math.min(width * 0.42f, 430f);
-
-        float maxHeight =
-                Math.min(height * 0.72f, 760f);
-
-        float panelWidth =
-                maxWidth * (1f - animationProgress * 0.55f);
-
-        float panelHeight =
-                maxHeight * (1f - animationProgress * 0.08f);
-
-        float gap =
-                35f + animationProgress * 70f;
+        float deviceHeight =
+                Math.min(
+                        screenHeight * 0.82f,
+                        1600f
+                );
 
         float left =
-                centerX - gap / 2f - panelWidth;
-
-        float right =
-                centerX + gap / 2f;
+                centerX
+                        - deviceWidth / 2f;
 
         float top =
-                centerY - panelHeight / 2f;
+                screenHeight / 2f
+                        - deviceHeight / 2f;
+
+        float halfWidth =
+                deviceWidth / 2f;
 
         /*
-         * 왼쪽 화면
+         * 펼침 → 접힘
+         *
+         * 0 → 90도
          */
+        float rotation =
+                90f * progress;
 
+        /*
+         * --------------------
+         * 왼쪽 화면
+         * --------------------
+         *
+         * 오른쪽 모서리가
+         * 중앙 힌지에 붙어있는 상태.
+         */
         canvas.save();
 
-        canvas.rotate(
-                -18f * animationProgress,
-                left + panelWidth,
-                centerY
+        camera.save();
+
+        camera.rotateY(
+                rotation
         );
 
-        drawPanel(
+        camera.getMatrix(
+                matrix
+        );
+
+        camera.restore();
+
+        /*
+         * 왼쪽 패널의 중심을
+         * 중앙 힌지 기준으로 이동
+         */
+        matrix.preTranslate(
+                -centerX,
+                -screenHeight / 2f
+        );
+
+        matrix.postTranslate(
+                centerX,
+                screenHeight / 2f
+        );
+
+        canvas.concat(
+                matrix
+        );
+
+        drawLeftPanel(
                 canvas,
-                left,
+                centerX,
                 top,
-                panelWidth,
-                panelHeight
+                halfWidth,
+                deviceHeight
         );
 
         canvas.restore();
 
         /*
+         * --------------------
          * 오른쪽 화면
+         * --------------------
          */
-
         canvas.save();
 
-        canvas.rotate(
-                18f * animationProgress,
-                right,
-                centerY
+        camera.save();
+
+        camera.rotateY(
+                -rotation
         );
 
-        drawPanel(
+        camera.getMatrix(
+                matrix
+        );
+
+        camera.restore();
+
+        matrix.preTranslate(
+                -centerX,
+                -screenHeight / 2f
+        );
+
+        matrix.postTranslate(
+                centerX,
+                screenHeight / 2f
+        );
+
+        canvas.concat(
+                matrix
+        );
+
+        drawRightPanel(
                 canvas,
-                right,
+                centerX,
                 top,
-                panelWidth,
-                panelHeight
+                halfWidth,
+                deviceHeight
         );
 
         canvas.restore();
@@ -167,57 +267,41 @@ public class DuoOverlayView extends View {
         /*
          * 중앙 힌지
          */
-
-        paint.setColor(
-                Color.argb(
-                        (int)(170 * animationProgress),
-                        255,
-                        255,
-                        255
-                )
-        );
-
-        float hingeWidth =
-                5f + animationProgress * 8f;
-
-        canvas.drawRoundRect(
-                centerX - hingeWidth,
-                top + 30,
-                centerX + hingeWidth,
-                top + panelHeight - 30,
-                hingeWidth,
-                hingeWidth,
-                paint
+        drawHinge(
+                canvas,
+                centerX,
+                top,
+                deviceHeight
         );
     }
 
-    private void drawPanel(
+    private void drawLeftPanel(
             Canvas canvas,
-            float left,
+            float hingeX,
             float top,
             float width,
             float height
     ) {
 
+        float left =
+                hingeX - width;
+
+        /*
+         * 화면 외곽
+         */
         paint.setColor(
                 Color.argb(
-                        (int)(90 * animationProgress),
-                        255,
-                        255,
-                        255
+                        180,
+                        245,
+                        245,
+                        245
                 )
         );
-
-        paint.setStyle(
-                Paint.Style.STROKE
-        );
-
-        paint.setStrokeWidth(2f);
 
         canvas.drawRoundRect(
                 left,
                 top,
-                left + width,
+                hingeX,
                 top + height,
                 28f,
                 28f,
@@ -225,39 +309,185 @@ public class DuoOverlayView extends View {
         );
 
         /*
-         * 내부 빛
+         * 내부 화면
          */
-
-        paint.setStrokeWidth(1f);
-
         paint.setColor(
                 Color.argb(
-                        (int)(45 * animationProgress),
+                        75,
                         255,
                         255,
                         255
                 )
         );
 
-        float innerLeft =
-                left + width * 0.12f;
-
-        float innerRight =
-                left + width * 0.88f;
-
-        float innerTop =
-                top + height * 0.18f;
-
-        canvas.drawLine(
-                innerLeft,
-                innerTop,
-                innerRight,
-                innerTop,
+        canvas.drawRoundRect(
+                left + width * 0.06f,
+                top + height * 0.04f,
+                hingeX - width * 0.04f,
+                top + height * 0.96f,
+                20f,
+                20f,
                 paint
         );
 
-        paint.setStyle(
-                Paint.Style.FILL
+        /*
+         * 접힐수록 어두워지는 음영
+         */
+        int shadowAlpha =
+                (int)(
+                        150f * progress
+                );
+
+        if (shadowAlpha > 0) {
+
+            paint.setColor(
+                    Color.argb(
+                            shadowAlpha,
+                            0,
+                            0,
+                            0
+                    )
+            );
+
+            canvas.drawRect(
+                    hingeX - width * 0.22f,
+                    top,
+                    hingeX,
+                    top + height,
+                    paint
+            );
+        }
+    }
+
+    private void drawRightPanel(
+            Canvas canvas,
+            float hingeX,
+            float top,
+            float width,
+            float height
+    ) {
+
+        float right =
+                hingeX + width;
+
+        paint.setColor(
+                Color.argb(
+                        180,
+                        245,
+                        245,
+                        245
+                )
+        );
+
+        canvas.drawRoundRect(
+                hingeX,
+                top,
+                right,
+                top + height,
+                28f,
+                28f,
+                paint
+        );
+
+        paint.setColor(
+                Color.argb(
+                        75,
+                        255,
+                        255,
+                        255
+                )
+        );
+
+        canvas.drawRoundRect(
+                hingeX + width * 0.04f,
+                top + height * 0.04f,
+                right - width * 0.06f,
+                top + height * 0.96f,
+                20f,
+                20f,
+                paint
+        );
+
+        int shadowAlpha =
+                (int)(
+                        150f * progress
+                );
+
+        if (shadowAlpha > 0) {
+
+            paint.setColor(
+                    Color.argb(
+                            shadowAlpha,
+                            0,
+                            0,
+                            0
+                    )
+            );
+
+            canvas.drawRect(
+                    hingeX,
+                    top,
+                    hingeX + width * 0.22f,
+                    top + height,
+                    paint
+            );
+        }
+    }
+
+    private void drawHinge(
+            Canvas canvas,
+            float centerX,
+            float top,
+            float height
+    ) {
+
+        /*
+         * 접힐수록 힌지가 조금 더 강조된다.
+         */
+        float hingeWidth =
+                2f + progress * 7f;
+
+        paint.setColor(
+                Color.argb(
+                        (int)(
+                                120f * progress
+                        ),
+                        255,
+                        255,
+                        255
+                )
+        );
+
+        canvas.drawRoundRect(
+                centerX - hingeWidth,
+                top,
+                centerX + hingeWidth,
+                top + height,
+                hingeWidth,
+                hingeWidth,
+                paint
+        );
+
+        /*
+         * 아주 미세한 중앙 그림자
+         */
+        paint.setColor(
+                Color.argb(
+                        (int)(
+                                100f * progress
+                        ),
+                        0,
+                        0,
+                        0
+                )
+        );
+
+        canvas.drawRect(
+                centerX - 1f,
+                top,
+                centerX + 1f,
+                top + height,
+                paint
         );
     }
 }
